@@ -73,19 +73,6 @@ pub fn status_class(status: NodeStatus) -> &'static str {
     }
 }
 
-/// The human label for a node's status.
-pub fn status_text(status: NodeStatus) -> &'static str {
-    match status {
-        NodeStatus::Staged => "staged",
-        NodeStatus::Idle => "idle",
-        NodeStatus::Running => "running",
-        NodeStatus::Paused => "paused",
-        NodeStatus::Waiting => "waiting",
-        NodeStatus::Done => "done",
-        NodeStatus::Failed => "failed",
-    }
-}
-
 /// The CSS class for one normalized output or chat line.
 pub fn kind_class(kind: OutputKind) -> &'static str {
     match kind {

@@ -1,21 +1,23 @@
 //! Repo recon: a one-shot Claude analyst that inspects the workspace against a
-//! goal and proposes graphs the user can stage. The suggestions are published to
-//! the bus for the page to render as one-click templates.
+//! goal and proposes graphs the user can stage. The result is handed back to the
+//! orchestrator, which publishes it on its stable client, so a suggestion is never
+//! lost to a closing connection.
 
 use std::process::Stdio;
+use std::time::Duration;
 
-use protocol::{AnalyzeResult, SuggestedGraph, topics};
-use tokio::process::Command;
+use protocol::{AnalyzeResult, SuggestedGraph};
+use tokio::process::Command as TokioCommand;
+use tokio::sync::mpsc;
 
-use crate::bus;
+use crate::orchestrator::Command;
 
 const SYSTEM_PROMPT: &str = "You are a repository analyst for Mobius, which runs graphs of Claude Code agents that feed each other in loops. Inspect the working directory with Read, Glob, and Grep to understand the project. Then, for the user's goal, propose 2 to 4 distinct multi-agent workflows that would accomplish it. Reply with ONLY a JSON array and no other text. Each element is an object: {\"name\": a short title, \"rationale\": one sentence on why this fits this repo and goal, \"nodes\": [{\"id\": a short lowercase handle, \"role\": the agent's system prompt}], \"edges\": [{\"from\": a node id, \"to\": a node id, \"template\": the prompt sent to the `to` node, using {output} for the `from` node's output}]}. Keep each workflow to 2 to 4 nodes, make the roles concrete and specific to this repository, and wire the edges into a working loop.";
 
-/// Runs the analyst against `workspace` for `goal` and publishes the result.
-pub async fn run(goal: String, workspace: String, tcp_addr: String) {
-    let Ok(publisher) = bus::connect("analyzer", &tcp_addr).await else {
-        return;
-    };
+const TIMEOUT_SECS: u64 = 180;
+
+/// Runs the analyst against `workspace` for `goal` and sends the result home.
+pub async fn run(goal: String, workspace: String, commands: mpsc::UnboundedSender<Command>) {
     let result = match analyze(&goal, &workspace).await {
         Ok(graphs) => AnalyzeResult {
             goal,
@@ -28,14 +30,14 @@ pub async fn run(goal: String, workspace: String, tcp_addr: String) {
             error: Some(error),
         },
     };
-    bus::publish(&publisher, topics::SUGGESTIONS, &result).await;
+    let _ = commands.send(Command::AnalyzeDone(result));
 }
 
 async fn analyze(goal: &str, workspace: &str) -> Result<Vec<SuggestedGraph>, String> {
     let prompt = format!(
         "Goal: {goal}\n\nInspect this repository and propose workflows that meet the goal."
     );
-    let mut command = Command::new("claude");
+    let mut command = TokioCommand::new("claude");
     command
         .arg("--print")
         .arg("--output-format")
@@ -52,10 +54,14 @@ async fn analyze(goal: &str, workspace: &str) -> Result<Vec<SuggestedGraph>, Str
     if !workspace.is_empty() {
         command.current_dir(workspace);
     }
-    let output = command
-        .output()
+    let output = tokio::time::timeout(Duration::from_secs(TIMEOUT_SECS), command.output())
         .await
-        .map_err(|error| format!("failed to launch the analyzer: {error}"))?;
+        .map_err(|_| "the analyzer timed out".to_string())?
+        .map_err(|error| {
+            format!(
+                "could not launch the claude CLI ({error}). Make sure `claude` is on your PATH."
+            )
+        })?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(format!("the analyzer exited with an error: {stderr}"));

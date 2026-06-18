@@ -9,15 +9,25 @@ use leptos::prelude::*;
 use protocol::{Edge, NodeView, OutputKind, Trigger, UiCommand};
 
 use crate::bus::{self, Bus};
-use crate::state::{MobiusState, kind_class, status_class, status_text};
+use crate::state::{MobiusState, kind_class, status_class};
 
 #[component]
 pub fn Inspector(state: MobiusState, bus: Bus) -> impl IntoView {
     let log_ref = NodeRef::<Div>::new();
 
+    let selected_lines = Memo::new(move |_| {
+        let id = state.selected.get();
+        state.outputs.with(|map| {
+            id.as_ref()
+                .and_then(|node| map.get(node))
+                .map(Vec::len)
+                .unwrap_or(0)
+        })
+    });
+
     Effect::new(move |_| {
         state.selected.track();
-        state.outputs.track();
+        selected_lines.track();
         if let Some(element) = log_ref.get() {
             element.set_scroll_top(element.scroll_height());
         }
@@ -173,7 +183,7 @@ fn inspector_body(
     };
 
     let status = status_class(node.status);
-    let status_label = status_text(node.status);
+    let status_label = status_class(node.status);
     let label = node.spec.label.clone();
     let cwd = node.spec.cwd.clone();
     let role = node.spec.system_prompt.clone();

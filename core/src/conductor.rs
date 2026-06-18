@@ -13,8 +13,9 @@ use crate::{HostConfig, bus, node};
 
 const SYSTEM_PROMPT: &str = "You are the conductor of a graph of Claude Code agents orchestrated by Mobius. You drive and inspect the graph only through the mobius MCP tools; you have no filesystem, shell, or web access of your own. Each node is a Claude agent with a role, a working directory, and a transcript; edges route one node's finished turns into another's input, forming loops. Default to designing, not running. When the user describes what they want, build the graph by staging it: set_workspace to the project they name (so every agent shares that repo's context), stage_node for each agent, and add_edge to wire their outputs into each other's inputs. Then describe the staged graph back to them and ask them to review it. Do NOT call execute until the user explicitly tells you to run or go; the design should sit there, visualized, until they approve it. Once running, use get_graph and list_nodes to see the graph, get_node and get_transcript to interrogate a node, send_prompt to kick off or nudge a node, pause_node, resume_node, and stop_node to control flow, and stop_all as a kill switch. spawn_node adds and starts a node in one step, only for live changes the user asks for. Always report what the graph is doing in plain language.";
 
-/// Connects to the bus, starts the conductor subprocess, and pumps chat prompts
-/// into its stdin. Restarts the subprocess if the pipe breaks.
+/// Connects to the bus and pumps chat prompts into a Claude subprocess, starting
+/// it lazily on the first prompt and restarting it if the pipe breaks. Launch
+/// failures are reported to the chat instead of dying silently.
 pub async fn run(config: HostConfig) {
     let Ok(mut prompts) = bus::connect_subscribed(
         "conductor-in",
@@ -25,9 +26,10 @@ pub async fn run(config: HostConfig) {
     else {
         return;
     };
-    let Some(mut stdin) = start(&config).await else {
+    let Ok(publisher) = bus::connect("conductor-out", &config.tcp_addr).await else {
         return;
     };
+    let mut stdin: Option<ChildStdin> = None;
 
     while let Some(message) = hearsay::next_message(&mut prompts).await {
         if message.topic != topics::CONDUCTOR_PROMPT {
@@ -36,15 +38,46 @@ pub async fn run(config: HostConfig) {
         let Ok(prompt) = serde_json::from_str::<ConductorPrompt>(&message.payload) else {
             continue;
         };
+
+        if stdin.is_none() {
+            match start(&config).await {
+                Ok(fresh) => stdin = Some(fresh),
+                Err(error) => {
+                    report(&publisher, &error).await;
+                    continue;
+                }
+            }
+        }
+
         let line = node::user_message_line(&prompt.text);
-        if !write_line(&mut stdin, &line).await {
-            let Some(fresh) = start(&config).await else {
-                break;
-            };
-            stdin = fresh;
-            let _ = write_line(&mut stdin, &line).await;
+        let delivered = match stdin.as_mut() {
+            Some(open) => write_line(open, &line).await,
+            None => false,
+        };
+        if !delivered {
+            match start(&config).await {
+                Ok(mut fresh) => {
+                    let _ = write_line(&mut fresh, &line).await;
+                    stdin = Some(fresh);
+                }
+                Err(error) => {
+                    stdin = None;
+                    report(&publisher, &error).await;
+                }
+            }
         }
     }
+}
+
+async fn report(publisher: &hearsay::Client, message: &str) {
+    bus::publish_conductor(
+        publisher,
+        &ConductorEvent {
+            kind: OutputKind::Stderr,
+            text: message.to_string(),
+        },
+    )
+    .await;
 }
 
 async fn write_line(stdin: &mut ChildStdin, line: &str) -> bool {
@@ -53,15 +86,17 @@ async fn write_line(stdin: &mut ChildStdin, line: &str) -> bool {
         && stdin.flush().await.is_ok()
 }
 
-async fn start(config: &HostConfig) -> Option<ChildStdin> {
+async fn start(config: &HostConfig) -> Result<ChildStdin, String> {
     let mcp_url = format!("http://{}/mcp", config.mcp_addr);
     let mut command = conductor_command(&mcp_url);
     command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = command.spawn().ok()?;
-    let stdin = child.stdin.take()?;
+    let mut child = command.spawn().map_err(|error| {
+        format!("could not launch the claude CLI ({error}). Make sure `claude` is on your PATH.")
+    })?;
+    let stdin = child.stdin.take().ok_or("claude stdin was not piped")?;
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
 
@@ -102,7 +137,7 @@ async fn start(config: &HostConfig) -> Option<ChildStdin> {
     tokio::spawn(async move {
         let _ = child.wait().await;
     });
-    Some(stdin)
+    Ok(stdin)
 }
 
 fn conductor_command(mcp_url: &str) -> Command {

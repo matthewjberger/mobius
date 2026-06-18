@@ -104,7 +104,6 @@ pub async fn start_host(config: HostConfig) -> Result<Host> {
         command_tx.clone(),
         publisher,
         config.workspace.clone(),
-        config.tcp_addr.clone(),
     ));
 
     if config.with_mcp {

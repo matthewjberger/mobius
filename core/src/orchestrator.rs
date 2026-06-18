@@ -15,8 +15,8 @@ use petgraph::Direction;
 use petgraph::stable_graph::{NodeIndex, StableDiGraph};
 use petgraph::visit::{EdgeRef, IntoEdgeReferences};
 use protocol::{
-    Edge, GraphSnapshot, NodeId, NodeOutput, NodeSpec, NodeStateUpdate, NodeStatus, NodeView,
-    OutputKind, Trigger,
+    AnalyzeResult, Edge, GraphSnapshot, NodeId, NodeOutput, NodeSpec, NodeStateUpdate, NodeStatus,
+    NodeView, OutputKind, Trigger, topics,
 };
 use regex::Regex;
 use tokio::io::AsyncWriteExt;
@@ -42,6 +42,7 @@ pub(crate) enum Command {
     Analyze {
         goal: String,
     },
+    AnalyzeDone(AnalyzeResult),
     Spawn {
         spec: NodeSpec,
         reply: Option<oneshot::Sender<Result<NodeId>>>,
@@ -161,7 +162,6 @@ pub(crate) async fn run(
     command_tx: mpsc::UnboundedSender<Command>,
     bus: Client,
     workspace: String,
-    tcp_addr: String,
 ) {
     let mut state = Graph::new(workspace);
 
@@ -220,8 +220,11 @@ pub(crate) async fn run(
                 tokio::spawn(crate::analyzer::run(
                     goal,
                     state.workspace.clone(),
-                    tcp_addr.clone(),
+                    command_tx.clone(),
                 ));
+            }
+            Command::AnalyzeDone(result) => {
+                bus::publish(&bus, topics::SUGGESTIONS, &result).await;
             }
             Command::Spawn { spec, reply } => {
                 let id = stage(&mut state, spec);
@@ -265,14 +268,14 @@ pub(crate) async fn run(
                 };
                 for text in queued {
                     if let Some(agent) = state.agent_mut(&node) {
-                        deliver(&bus, &node, agent, &text).await;
+                        deliver(&bus, &command_tx, &node, agent, &text).await;
                     }
                 }
                 publish_snapshot(&bus, &state).await;
             }
             Command::SendPrompt { node, text } => {
                 if let Some(agent) = state.agent_mut(&node) {
-                    deliver(&bus, &node, agent, &text).await;
+                    deliver(&bus, &command_tx, &node, agent, &text).await;
                 }
                 publish_snapshot(&bus, &state).await;
             }
@@ -347,7 +350,7 @@ pub(crate) async fn run(
                 }
                 for (target, prompt) in fired {
                     if let Some(agent) = state.agent_mut(&target) {
-                        deliver(&bus, &target, agent, &prompt).await;
+                        deliver(&bus, &command_tx, &target, agent, &prompt).await;
                     }
                 }
                 publish_snapshot(&bus, &state).await;
@@ -459,9 +462,21 @@ fn end_turn(state: &mut Graph, node: &str) -> Vec<(NodeId, String)> {
         .collect()
 }
 
-async fn deliver(bus: &Client, node: &str, agent: &mut Agent, text: &str) {
+async fn deliver(
+    bus: &Client,
+    command_tx: &mpsc::UnboundedSender<Command>,
+    node: &str,
+    agent: &mut Agent,
+    text: &str,
+) {
     if matches!(agent.status, NodeStatus::Paused) {
         agent.paused_queue.push(text.to_string());
+        return;
+    }
+    if agent.stdin.is_none() && launch_into(agent, command_tx).is_err() {
+        agent.status = NodeStatus::Failed;
+        bus::publish_output(bus, node, OutputKind::Info, "could not start this node").await;
+        announce_state(bus, agent).await;
         return;
     }
     bus::publish_output(bus, node, OutputKind::Prompt, text).await;

@@ -9,7 +9,7 @@ use protocol::UiCommand;
 
 use crate::bus::{self, Bus};
 use crate::presets::{self, PRESETS};
-use crate::state::{MobiusState, status_class, status_text, truncate};
+use crate::state::{MobiusState, status_class, truncate};
 
 #[component]
 pub fn GraphView(state: MobiusState, bus: Bus) -> impl IntoView {
@@ -85,7 +85,7 @@ pub fn GraphView(state: MobiusState, bus: Bus) -> impl IntoView {
                         let click_id = id.clone();
                         let compare_id = id.clone();
                         let status = status_class(view.status);
-                        let status_label = status_text(view.status);
+                        let status_label = status_class(view.status);
                         let label = view.spec.label.clone();
                         let turns = view.turns;
                         let snippet = truncate(&view.last_output, 100);

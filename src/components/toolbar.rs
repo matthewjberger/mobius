@@ -13,13 +13,6 @@ pub fn Toolbar(state: MobiusState, bus: Bus) -> impl IntoView {
     let new_role = RwSignal::new(String::new());
     let workspace = RwSignal::new(String::new());
 
-    Effect::new(move |_| {
-        let current = state.snapshot.get().workspace;
-        if !current.is_empty() && workspace.get_untracked().is_empty() {
-            workspace.set(current);
-        }
-    });
-
     let stage = {
         let bus = bus.clone();
         move || {
@@ -50,6 +43,7 @@ pub fn Toolbar(state: MobiusState, bus: Bus) -> impl IntoView {
                 return;
             }
             bus::publish_command(&bus, &UiCommand::SetWorkspace { path });
+            workspace.set(String::new());
         }
     };
 
@@ -82,9 +76,22 @@ pub fn Toolbar(state: MobiusState, bus: Bus) -> impl IntoView {
             </div>
             <div class="workspace-field">
                 <span class="field-label">"workspace"</span>
+                <span class="workspace-active" title="the directory new agents run in">
+                    {move || {
+                        let path = state.snapshot.get().workspace;
+                        if path.is_empty() || path == "." {
+                            "no repo chosen".to_string()
+                        } else {
+                            path
+                        }
+                    }}
+                </span>
+                <button class="btn" on:click=browse>
+                    "Browse..."
+                </button>
                 <input
                     class="ti workspace-input"
-                    placeholder="e.g. C:\\Users\\you\\code\\nightshade"
+                    placeholder="or type a path"
                     prop:value=move || workspace.get()
                     on:input=move |event| workspace.set(event_target_value(&event))
                     on:keydown={
@@ -96,9 +103,6 @@ pub fn Toolbar(state: MobiusState, bus: Bus) -> impl IntoView {
                         }
                     }
                 />
-                <button class="btn" on:click=browse>
-                    "Browse..."
-                </button>
                 <button
                     class="btn"
                     on:click={
