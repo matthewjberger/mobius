@@ -1,0 +1,14 @@
+[package]
+name = "protocol"
+description = "Mobius wire format: graph, node, output, and command types shared by the host and the page"
+version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }

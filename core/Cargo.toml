@@ -1,0 +1,39 @@
+[package]
+name = "mobius"
+description = "Program prompt loops over Claude Code: graphs of agents that feed each other, with a queryable, drivable host"
+version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "mobius"
+path = "src/lib.rs"
+
+[dependencies]
+protocol = { path = "../protocol" }
+hearsay = { version = "0.1", features = ["websockets", "spawn"] }
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "macros",
+    "net",
+    "sync",
+    "time",
+    "process",
+    "io-util",
+    "signal",
+] }
+tiny_http = "0.12"
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+postcard = { version = "1", features = ["alloc"] }
+regex = "1"
+petgraph = "0.6"
+
+[[example]]
+name = "review_loop"
+path = "examples/review_loop.rs"

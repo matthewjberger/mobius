@@ -1,0 +1,139 @@
+//! The live agent graph: nodes laid out on a ring, edges drawn between them, each
+//! node colored by status and showing its latest output. Clicking a node opens it
+//! in the inspector.
+
+use std::collections::HashMap;
+
+use leptos::prelude::*;
+
+use crate::bus::Bus;
+use crate::presets::{self, PRESETS};
+use crate::state::{MobiusState, status_class, status_text, truncate};
+
+#[component]
+pub fn GraphView(state: MobiusState, bus: Bus) -> impl IntoView {
+    view! {
+        <div class="graph">
+            {move || {
+                let snapshot = state.snapshot.get();
+                if snapshot.nodes.is_empty() {
+                    let bus = bus.clone();
+                    let cards = PRESETS
+                        .iter()
+                        .map(|preset| {
+                            let bus = bus.clone();
+                            view! {
+                                <div class="preset-card">
+                                    <div class="preset-name">{preset.name}</div>
+                                    <div class="preset-blurb">{preset.blurb}</div>
+                                    <button
+                                        class="btn primary"
+                                        on:click=move |_| presets::apply(&bus, preset)
+                                    >
+                                        "Stage this loop"
+                                    </button>
+                                </div>
+                            }
+                        })
+                        .collect_view();
+                    return view! {
+                        <div class="graph-empty">
+                            <div class="graph-empty-title">"Start with a loop"</div>
+                            <div class="graph-empty-sub">
+                                "Set your workspace up top, then stage a template below to design it. Nothing runs until you press Execute. You can also build your own, or ask the conductor on the right."
+                            </div>
+                            <div class="preset-grid">{cards}</div>
+                        </div>
+                    }
+                    .into_any();
+                }
+
+                let count = snapshot.nodes.len();
+                let index: HashMap<String, usize> = snapshot
+                    .nodes
+                    .iter()
+                    .enumerate()
+                    .map(|(position, view)| (view.spec.id.clone(), position))
+                    .collect();
+                let place = move |slot: usize| -> (f64, f64) {
+                    if count <= 1 {
+                        return (50.0, 40.0);
+                    }
+                    let angle = std::f64::consts::TAU * (slot as f64) / (count as f64)
+                        - std::f64::consts::FRAC_PI_2;
+                    (50.0 + 33.0 * angle.cos(), 50.0 + 33.0 * angle.sin())
+                };
+
+                let edges = snapshot
+                    .edges
+                    .iter()
+                    .filter_map(|edge| {
+                        let from = *index.get(&edge.from)?;
+                        let to = *index.get(&edge.to)?;
+                        let (x1, y1) = place(from);
+                        let (x2, y2) = place(to);
+                        let hx = x1 + (x2 - x1) * 0.7;
+                        let hy = y1 + (y2 - y1) * 0.7;
+                        Some(view! {
+                            <line
+                                x1=format!("{x1:.2}%")
+                                y1=format!("{y1:.2}%")
+                                x2=format!("{x2:.2}%")
+                                y2=format!("{y2:.2}%")
+                                class="edge"
+                            ></line>
+                            <circle cx=format!("{hx:.2}%") cy=format!("{hy:.2}%") r="4" class="edge-head"></circle>
+                        })
+                    })
+                    .collect_view();
+
+                let cards = snapshot
+                    .nodes
+                    .iter()
+                    .enumerate()
+                    .map(|(slot, view)| {
+                        let (x, y) = place(slot);
+                        let id = view.spec.id.clone();
+                        let click_id = id.clone();
+                        let compare_id = id.clone();
+                        let status = status_class(view.status);
+                        let status_label = status_text(view.status);
+                        let label = view.spec.label.clone();
+                        let turns = view.turns;
+                        let snippet = truncate(&view.last_output, 100);
+                        let selected = state.selected;
+                        view! {
+                            <div
+                                class=move || {
+                                    let active = selected.get().as_deref() == Some(compare_id.as_str());
+                                    format!("node {status} {}", if active { "selected" } else { "" })
+                                }
+                                style=format!("left:{x:.2}%;top:{y:.2}%")
+                                on:click=move |_| selected.set(Some(click_id.clone()))
+                            >
+                                <div class="node-head">
+                                    <span class="node-label">{label}</span>
+                                    <span class=format!("pill {status}")>{status_label}</span>
+                                </div>
+                                <div class="node-meta">{format!("{turns} turns")}</div>
+                                <div class="node-snippet">
+                                    {if snippet.is_empty() {
+                                        "waiting for output".to_string()
+                                    } else {
+                                        snippet
+                                    }}
+                                </div>
+                            </div>
+                        }
+                    })
+                    .collect_view();
+
+                view! {
+                    <svg class="edges">{edges}</svg>
+                    {cards}
+                }
+                .into_any()
+            }}
+        </div>
+    }
+}

@@ -1,0 +1,22 @@
+[package]
+name = "desktop"
+description = "Mobius's desktop shell: a wry webview hosting the page and booting the orchestration host"
+version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "mobius"
+path = "src/main.rs"
+
+[dependencies]
+mobius = { path = "../core" }
+wry = "0.55"
+winit = "0.30"
+rust-embed = "8"
+tiny_http = "0.12"
