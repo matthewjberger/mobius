@@ -349,6 +349,15 @@ pub(crate) async fn run(
                     announce_state(&bus, agent).await;
                 }
                 for (target, prompt) in fired {
+                    bus::publish_comm(
+                        &bus,
+                        &protocol::Communication {
+                            from: node.clone(),
+                            to: target.clone(),
+                            text: prompt.clone(),
+                        },
+                    )
+                    .await;
                     if let Some(agent) = state.agent_mut(&target) {
                         deliver(&bus, &command_tx, &target, agent, &prompt).await;
                     }

@@ -52,6 +52,7 @@ pub fn GraphView(state: MobiusState, bus: Bus) -> impl IntoView {
                     (50.0 + 33.0 * angle.cos(), 50.0 + 33.0 * angle.sin())
                 };
 
+                let pulse = state.pulse.get();
                 let edges = snapshot
                     .edges
                     .iter()
@@ -62,15 +63,20 @@ pub fn GraphView(state: MobiusState, bus: Bus) -> impl IntoView {
                         let (x2, y2) = place(to);
                         let hx = x1 + (x2 - x1) * 0.7;
                         let hy = y1 + (y2 - y1) * 0.7;
+                        let active = pulse
+                            .as_ref()
+                            .is_some_and(|(pf, pt)| pf == &edge.from && pt == &edge.to);
+                        let line_class = if active { "edge pulse" } else { "edge" };
+                        let head_class = if active { "edge-head pulse" } else { "edge-head" };
                         Some(view! {
                             <line
                                 x1=format!("{x1:.2}%")
                                 y1=format!("{y1:.2}%")
                                 x2=format!("{x2:.2}%")
                                 y2=format!("{y2:.2}%")
-                                class="edge"
+                                class=line_class
                             ></line>
-                            <circle cx=format!("{hx:.2}%") cy=format!("{hy:.2}%") r="4" class="edge-head"></circle>
+                            <circle cx=format!("{hx:.2}%") cy=format!("{hy:.2}%") r="4" class=head_class></circle>
                         })
                     })
                     .collect_view();

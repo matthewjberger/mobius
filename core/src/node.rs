@@ -150,16 +150,17 @@ fn node_command(spec: &NodeSpec) -> TokioCommand {
         .arg("stream-json")
         .arg("--verbose")
         .arg("--permission-mode")
-        .arg("dontAsk");
+        .arg("bypassPermissions");
     if !spec.system_prompt.is_empty() {
         command
             .arg("--append-system-prompt")
             .arg(&spec.system_prompt);
     }
     if !spec.allowed_tools.is_empty() {
-        command
-            .arg("--allowed-tools")
-            .arg(spec.allowed_tools.join(" "));
+        command.arg("--allowed-tools");
+        for tool in &spec.allowed_tools {
+            command.arg(tool);
+        }
     }
     if let Some(model) = &spec.model {
         command.arg("--model").arg(model);

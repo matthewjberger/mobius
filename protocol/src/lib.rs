@@ -18,6 +18,8 @@ pub mod topics {
     pub const NODE_STATE: &str = "mobius/nodes/state";
     /// Host to page: the conductor's normalized stream, a [`super::ConductorEvent`].
     pub const CONDUCTOR_OUTPUT: &str = "mobius/conductor/output";
+    /// Host to page: a [`super::Communication`] each time an edge passes a prompt.
+    pub const COMMS: &str = "mobius/comms";
     /// Host to page: an [`super::AnalyzeResult`] when repo recon finishes.
     pub const SUGGESTIONS: &str = "mobius/suggestions";
     /// Page to host: a [`super::ConductorPrompt`], the user's plain-English message.
@@ -145,6 +147,15 @@ pub struct ConductorEvent {
 /// The user's plain-English message to the conductor.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ConductorPrompt {
+    pub text: String,
+}
+
+/// One message passed along an edge: the prompt that flowed from one node to
+/// another when an edge fired. Drives the wire log and the edge pulse.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Communication {
+    pub from: NodeId,
+    pub to: NodeId,
     pub text: String,
 }
 

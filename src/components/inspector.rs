@@ -9,7 +9,7 @@ use leptos::prelude::*;
 use protocol::{Edge, NodeView, OutputKind, Trigger, UiCommand};
 
 use crate::bus::{self, Bus};
-use crate::state::{MobiusState, kind_class, status_class};
+use crate::state::{MobiusState, kind_class, status_class, truncate};
 
 #[component]
 pub fn Inspector(state: MobiusState, bus: Bus) -> impl IntoView {
@@ -37,12 +37,7 @@ pub fn Inspector(state: MobiusState, bus: Bus) -> impl IntoView {
         <div class="inspector">
             {move || {
                 let Some(id) = state.selected.get() else {
-                    return view! {
-                        <div class="inspector-empty">
-                            "Select a node to watch its terminal, drive it, and wire it to others."
-                        </div>
-                    }
-                    .into_any();
+                    return wire_log(state).into_any();
                 };
                 let Some(node) = state.snapshot.get().nodes.into_iter().find(|view| view.spec.id == id)
                 else {
@@ -257,6 +252,46 @@ fn inspector_body(
             >
                 "Send"
             </button>
+        </div>
+    }
+}
+
+fn wire_log(state: MobiusState) -> impl IntoView {
+    view! {
+        <div class="wire-log">
+            <div class="wire-title">"Activity \u{00b7} messages between nodes"</div>
+            {move || {
+                let comms = state.comms.get();
+                if comms.is_empty() {
+                    return view! {
+                        <div class="inspector-empty">
+                            "Select a node to watch its terminal and wire it to others. As the graph runs, the prompts that flow between nodes show up here."
+                        </div>
+                    }
+                    .into_any();
+                }
+                comms
+                    .into_iter()
+                    .rev()
+                    .take(50)
+                    .map(|comm| {
+                        let to = comm.to.clone();
+                        let selected = state.selected;
+                        view! {
+                            <div
+                                class="wire-row"
+                                on:click=move |_| selected.set(Some(to.clone()))
+                            >
+                                <span class="wire-edge">
+                                    {format!("{} \u{2192} {}", comm.from, comm.to)}
+                                </span>
+                                <span class="wire-text">{truncate(&comm.text, 90)}</span>
+                            </div>
+                        }
+                    })
+                    .collect_view()
+                    .into_any()
+            }}
         </div>
     }
 }

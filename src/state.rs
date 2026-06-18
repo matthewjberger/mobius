@@ -5,7 +5,9 @@
 use std::collections::HashMap;
 
 use leptos::prelude::*;
-use protocol::{GraphSnapshot, NodeId, NodeOutput, NodeStatus, OutputKind, SuggestedGraph};
+use protocol::{
+    Communication, GraphSnapshot, NodeId, NodeOutput, NodeStatus, OutputKind, SuggestedGraph,
+};
 
 /// One line in the conductor chat. `mine` is the user's own message; otherwise it
 /// is a normalized line from the conductor's stream.
@@ -36,6 +38,10 @@ pub struct MobiusState {
     pub analyzing: RwSignal<bool>,
     /// The last analyze error, if any.
     pub analyze_error: RwSignal<Option<String>>,
+    /// The messages that have flowed along edges, newest last.
+    pub comms: RwSignal<Vec<Communication>>,
+    /// The edge that most recently carried a message, for the pulse animation.
+    pub pulse: RwSignal<Option<(NodeId, NodeId)>>,
 }
 
 impl MobiusState {
@@ -50,6 +56,8 @@ impl MobiusState {
             suggestions: RwSignal::new(Vec::new()),
             analyzing: RwSignal::new(false),
             analyze_error: RwSignal::new(None),
+            comms: RwSignal::new(Vec::new()),
+            pulse: RwSignal::new(None),
         }
     }
 }

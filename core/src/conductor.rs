@@ -154,13 +154,11 @@ fn conductor_command(mcp_url: &str) -> Command {
         .arg("stream-json")
         .arg("--verbose")
         .arg("--permission-mode")
-        .arg("dontAsk")
-        .arg("--allowed-tools")
-        .arg("mcp__mobius__*")
-        .arg("--disallowed-tools")
-        .arg("Bash Edit Write Read WebFetch WebSearch Task Glob Grep NotebookEdit")
+        .arg("bypassPermissions")
         .arg("--mcp-config")
         .arg(mcp_config)
+        .arg("--allowed-tools")
+        .arg("mcp__mobius")
         .arg("--append-system-prompt")
         .arg(SYSTEM_PROMPT);
     command

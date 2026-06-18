@@ -4,7 +4,8 @@
 
 use hearsay::{Client, ClientSettings, Route};
 use protocol::{
-    ConductorEvent, GraphSnapshot, NodeOutput, NodeStateUpdate, OutputKind, UiCommand, topics,
+    Communication, ConductorEvent, GraphSnapshot, NodeOutput, NodeStateUpdate, OutputKind,
+    UiCommand, topics,
 };
 use serde::Serialize;
 use tokio::sync::mpsc;
@@ -68,4 +69,9 @@ pub async fn publish_state(client: &Client, update: &NodeStateUpdate) {
 /// Publishes one conductor stream line to `mobius/conductor/output`.
 pub async fn publish_conductor(client: &Client, event: &ConductorEvent) {
     publish(client, topics::CONDUCTOR_OUTPUT, event).await;
+}
+
+/// Publishes one edge message to `mobius/comms`.
+pub async fn publish_comm(client: &Client, comm: &Communication) {
+    publish(client, topics::COMMS, comm).await;
 }
