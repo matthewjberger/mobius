@@ -155,6 +155,8 @@ fn conductor_command(mcp_url: &str) -> Command {
         .arg("--verbose")
         .arg("--permission-mode")
         .arg("bypassPermissions")
+        .arg("--model")
+        .arg("sonnet")
         .arg("--mcp-config")
         .arg(mcp_config)
         .arg("--allowed-tools")
