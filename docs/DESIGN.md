@@ -79,18 +79,18 @@ One hearsay broker, started by the host, is the seam between everything.
 
 Topics (`protocol::topics`):
 
-- `mobius/graph` — the host publishes a `GraphSnapshot` whenever the graph
+- `mobius/graph` - the host publishes a `GraphSnapshot` whenever the graph
   changes, and on request. Pub/sub keeps no history, so a page publishes
   `RequestSnapshot` on connect to prime its view.
-- `mobius/nodes/output` — a `NodeOutput` per normalized stream event from every
+- `mobius/nodes/output` - a `NodeOutput` per normalized stream event from every
   agent: assistant text, thinking, a tool call, a turn result, a stderr line.
-- `mobius/nodes/state` — a `NodeStateUpdate` when an agent's status or turn count
+- `mobius/nodes/state` - a `NodeStateUpdate` when an agent's status or turn count
   changes.
-- `mobius/conductor/output` — the conductor's stream, normalized the same way, for
+- `mobius/conductor/output` - the conductor's stream, normalized the same way, for
   the chat pane.
-- `mobius/conductor/prompt` — the page publishes the user's plain-English message
+- `mobius/conductor/prompt` - the page publishes the user's plain-English message
   here; the conductor relay feeds it to the conductor subprocess.
-- `mobius/command` — the page publishes a `UiCommand` here to drive the graph from
+- `mobius/command` - the page publishes a `UiCommand` here to drive the graph from
   the UI (spawn, stop, pause, resume, send a prompt, wire an edge).
 
 ## The graph model
@@ -165,11 +165,11 @@ the websocket peer: it connects, subscribes, and maps each inbound `Message` to 
 signal write; outbound, it publishes `UiCommand`s and `ConductorPrompt`s. Three
 components render it:
 
-- **Graph view** — the nodes as a live graph, colored by status, with the edges
+- **Graph view** - the nodes as a live graph, colored by status, with the edges
   between them; selecting a node opens the inspector.
-- **Node inspector** — the selected node's spec, status, turn count, and streaming
+- **Node inspector** - the selected node's spec, status, turn count, and streaming
   transcript, with controls to pause, resume, stop, and send a one-off prompt.
-- **Conductor chat** — the chat window. You type English; it renders the
+- **Conductor chat** - the chat window. You type English; it renders the
   conductor's assistant text, thinking, and the tool calls it makes against the
   graph.
 

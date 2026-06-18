@@ -14,7 +14,7 @@ use tokio::sync::mpsc;
 use crate::node;
 use crate::orchestrator::Command;
 
-const SYSTEM_PROMPT: &str = "You are a repository analyst for Mobius, which runs graphs of Claude Code agents that feed each other in loops. Inspect the working directory with Read, Glob, and Grep to understand the project. Then, for the user's goal, propose 2 to 4 distinct multi-agent workflows that would accomplish it. Reply with ONLY a JSON array and no other text. Each element is an object: {\"name\": a short title, \"rationale\": one sentence on why this fits this repo and goal, \"nodes\": [{\"id\": a short lowercase handle, \"role\": the agent's system prompt}], \"edges\": [{\"from\": a node id, \"to\": a node id, \"template\": the prompt sent to the `to` node, using {output} for the `from` node's output}]}. Keep each workflow to 2 to 4 nodes, make the roles concrete and specific to this repository, and wire the edges into a working loop.";
+const SYSTEM_PROMPT: &str = "You are a repository analyst for Mobius, which runs graphs of Claude Code agents that feed each other in loops. Inspect the working directory with Read, Glob, and Grep to understand the project. Then propose 2 to 4 distinct multi-agent workflows for the user's goal; if no goal is given, propose generally useful workflows for working on this repository (tests, review, docs, refactors). Reply with ONLY a JSON array and no other text. Each element is an object: {\"name\": a short title, \"rationale\": one sentence on why this fits this repo and goal, \"nodes\": [{\"id\": a short lowercase handle, \"role\": the agent's system prompt}], \"edges\": [{\"from\": a node id, \"to\": a node id, \"template\": the prompt sent to the `to` node, using {output} for the `from` node's output}], \"kickoff\": the concrete first instruction to send the entry node to start the loop, specific to this repository}. Keep each workflow to 2 to 4 nodes, make the roles concrete and specific to this repository, and wire the edges into a working loop.";
 
 const MODEL: &str = "sonnet";
 const TIMEOUT_SECS: u64 = 180;
@@ -83,8 +83,13 @@ async fn analyze(
     let mut stdin = child.stdin.take().ok_or("claude stdin was not piped")?;
     let stdout = child.stdout.take().ok_or("claude stdout was not piped")?;
 
+    let stated = if goal.trim().is_empty() {
+        "(no specific goal given)".to_string()
+    } else {
+        goal.to_string()
+    };
     let prompt = format!(
-        "Goal: {goal}\n\nInspect this repository and propose workflows that meet the goal."
+        "Goal: {stated}\n\nInspect this repository and propose workflows that meet the goal."
     );
     let line = node::user_message_line(&prompt);
     stdin

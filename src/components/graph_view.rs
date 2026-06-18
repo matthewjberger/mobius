@@ -18,14 +18,10 @@ pub fn GraphView(state: MobiusState, bus: Bus) -> impl IntoView {
         let bus = bus.clone();
         move || {
             let goal_text = goal.get_untracked().trim().to_string();
-            if goal_text.is_empty() {
-                return;
-            }
             state.analyzing.set(true);
             state.analyze_error.set(None);
             state.analyze_progress.set(String::new());
             state.suggestions.set(Vec::new());
-            state.kickoff.set(goal_text.clone());
             bus::publish_command(&bus, &UiCommand::Analyze { goal: goal_text });
         }
     };
@@ -152,7 +148,7 @@ fn start_screen(
                         class="btn primary"
                         on:click=move |_| {
                             presets::apply(&bus, preset);
-                            state.kickoff.set(String::new());
+                            state.kickoff.set(preset.kickoff.to_string());
                         }
                     >
                         "Stage this loop"
@@ -180,7 +176,10 @@ fn start_screen(
                         <div class="preset-blurb">{graph.rationale.clone()}</div>
                         <button
                             class="btn primary"
-                            on:click=move |_| presets::apply_suggested(&bus, &staged)
+                            on:click=move |_| {
+                                presets::apply_suggested(&bus, &staged);
+                                state.kickoff.set(staged.kickoff.clone());
+                            }
                         >
                             "Stage this"
                         </button>
@@ -207,7 +206,7 @@ fn start_screen(
             <div class="analyze-bar">
                 <input
                     class="ti analyze-goal"
-                    placeholder="Describe a goal, e.g. add unit tests to the parser"
+                    placeholder="Optional goal, e.g. add unit tests to the parser (or just Analyze)"
                     prop:value=move || goal.get()
                     on:input=move |event| goal.set(event_target_value(&event))
                     on:keydown=move |event| {

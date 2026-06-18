@@ -239,19 +239,7 @@ pub(crate) async fn run(
                 bus::publish(&bus, topics::SUGGESTIONS, &result).await;
             }
             Command::Kickoff { text } => {
-                let entries: Vec<NodeId> = state
-                    .index
-                    .iter()
-                    .filter(|(_, node)| {
-                        state
-                            .graph
-                            .neighbors_directed(**node, Direction::Incoming)
-                            .count()
-                            == 0
-                    })
-                    .map(|(id, _)| id.clone())
-                    .collect();
-                for id in entries {
+                for id in kickoff_targets(&state) {
                     if let Some(agent) = state.agent_mut(&id) {
                         deliver(&bus, &command_tx, &id, agent, &text).await;
                     }
@@ -585,6 +573,28 @@ fn snapshot_of(state: &Graph) -> GraphSnapshot {
         nodes,
         edges,
     }
+}
+
+/// Where a kickoff prompt goes: the entry nodes (no inbound edges), or, when the
+/// graph is fully cyclic and has none, the first node by id so the loop still
+/// starts.
+fn kickoff_targets(state: &Graph) -> Vec<NodeId> {
+    let entries: Vec<NodeId> = state
+        .index
+        .iter()
+        .filter(|(_, node)| {
+            state
+                .graph
+                .neighbors_directed(**node, Direction::Incoming)
+                .count()
+                == 0
+        })
+        .map(|(id, _)| id.clone())
+        .collect();
+    if !entries.is_empty() {
+        return entries;
+    }
+    state.index.keys().min().cloned().into_iter().collect()
 }
 
 /// Looks at a directory and names what it is: a git repo, a Rust workspace or

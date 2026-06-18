@@ -14,6 +14,8 @@ pub struct Preset {
     pub nodes: &'static [(&'static str, &'static str)],
     /// `(from, to, prompt template)` for each edge, fired on every turn.
     pub edges: &'static [(&'static str, &'static str, &'static str)],
+    /// The first instruction Execute sends to the entry node to start the loop.
+    pub kickoff: &'static str,
 }
 
 pub const PRESETS: &[Preset] = &[
@@ -34,6 +36,7 @@ pub const PRESETS: &[Preset] = &[
             ("implementer", "reviewer", "Review this work:\n{output}"),
             ("reviewer", "implementer", "Address this review:\n{output}"),
         ],
+        kickoff: "Pick one small, valuable improvement to this repository, implement it in focused steps, and report what you changed.",
     },
     Preset {
         name: "Plan, Build, Test",
@@ -61,6 +64,7 @@ pub const PRESETS: &[Preset] = &[
             ("builder", "tester", "Verify this change:\n{output}"),
             ("tester", "builder", "Fix what the tests found:\n{output}"),
         ],
+        kickoff: "Identify a worthwhile, well-scoped task in this repository and break it into a short ordered plan for the builder.",
     },
     Preset {
         name: "Research, Draft, Critique",
@@ -92,6 +96,7 @@ pub const PRESETS: &[Preset] = &[
                 "Revise the draft per this critique:\n{output}",
             ),
         ],
+        kickoff: "Research this repository and draft clear documentation for its most important module.",
     },
 ];
 

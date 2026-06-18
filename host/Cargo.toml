@@ -1,0 +1,19 @@
+[package]
+name = "host"
+description = "Mobius headless host: runs the bus, orchestrator, conductor, and MCP for a web UI to connect to"
+version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "mobius-host"
+path = "src/main.rs"
+
+[dependencies]
+mobius = { path = "../core" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }

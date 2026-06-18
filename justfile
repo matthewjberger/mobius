@@ -17,7 +17,12 @@ build:
 run: build
     cargo run -p desktop
 
-# Serves the page in the browser at http://127.0.0.1:8080 (observe-only, no host)
+# Runs the headless host: the bus, orchestrator, conductor, and MCP. Pair with a
+# web UI (run-web, or the GitHub Pages site), which connects over the bus.
+host:
+    cargo run -p host
+
+# Serves the page in the browser at http://127.0.0.1:8080. Pair with `just host`.
 run-web:
     trunk serve
 
@@ -35,13 +40,13 @@ build-desktop: dist
 
 # Runs cargo check across native and wasm targets
 check:
-    cargo check -p protocol -p mobius -p desktop
+    cargo check -p protocol -p mobius -p desktop -p host
     cargo check -p protocol -p mobius-ui --target wasm32-unknown-unknown
     cargo fmt --all -- --check
 
 # Runs clippy across native and wasm and denies warnings
 lint:
-    cargo clippy -p protocol -p mobius -p desktop -- -D warnings
+    cargo clippy -p protocol -p mobius -p desktop -p host -- -D warnings
     cargo clippy -p protocol -p mobius-ui --target wasm32-unknown-unknown -- -D warnings
 
 # Formats the code

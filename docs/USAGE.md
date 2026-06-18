@@ -58,10 +58,10 @@ Click any node to open it. You see its role, status, turn count, working
 directory, and its outbound connections. Below that is a terminal view of
 everything that crossed the agent's pipes:
 
-- `in` — a prompt sent to the agent (its stdin)
-- `out` — assistant text, `···` thinking, `tool` a tool call (its stdout)
-- `end` — the result that ends a turn
-- `err` — a stderr line
+- `in` - a prompt sent to the agent (its stdin)
+- `out` - assistant text, `···` thinking, `tool` a tool call (its stdout)
+- `end` - the result that ends a turn
+- `err` - a stderr line
 
 The panel also has Pause, Resume, and Stop, and a box to send the node a one-off
 prompt.

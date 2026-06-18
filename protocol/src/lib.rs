@@ -186,6 +186,9 @@ pub struct SuggestedGraph {
     pub rationale: String,
     pub nodes: Vec<SuggestedNode>,
     pub edges: Vec<SuggestedEdge>,
+    /// The prompt Execute sends to the entry node to start this graph.
+    #[serde(default)]
+    pub kickoff: String,
 }
 
 /// The result of analyzing a repo against a goal: proposed graphs, or an error.
