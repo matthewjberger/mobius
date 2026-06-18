@@ -146,10 +146,15 @@ fn route(message: &Message, state: MobiusState) {
                 comms.drain(0..excess);
             }
         });
+    } else if message.topic == topics::ANALYZE_PROGRESS
+        && let Ok(line) = serde_json::from_str::<String>(&message.payload)
+    {
+        state.analyze_progress.set(line);
     } else if message.topic == topics::SUGGESTIONS
         && let Ok(result) = serde_json::from_str::<AnalyzeResult>(&message.payload)
     {
         state.analyzing.set(false);
+        state.analyze_progress.set(String::new());
         state.analyze_error.set(result.error);
         state.suggestions.set(result.graphs);
     } else if message.topic == topics::CONDUCTOR_OUTPUT
@@ -184,6 +189,7 @@ fn hello_and_subscribe(socket: &WebSocket) {
         topics::NODE_STATE,
         topics::CONDUCTOR_OUTPUT,
         topics::SUGGESTIONS,
+        topics::ANALYZE_PROGRESS,
         topics::COMMS,
     ] {
         send_event(

@@ -42,7 +42,11 @@ pub(crate) enum Command {
     Analyze {
         goal: String,
     },
+    AnalyzeProgress(String),
     AnalyzeDone(AnalyzeResult),
+    Kickoff {
+        text: String,
+    },
     Spawn {
         spec: NodeSpec,
         reply: Option<oneshot::Sender<Result<NodeId>>>,
@@ -101,6 +105,7 @@ impl From<protocol::UiCommand> for Command {
             UiCommand::SetWorkspace { path } => Command::SetWorkspace { path },
             UiCommand::PickWorkspace => Command::PickWorkspace,
             UiCommand::Analyze { goal } => Command::Analyze { goal },
+            UiCommand::Kickoff { text } => Command::Kickoff { text },
             UiCommand::SpawnNode { spec } => Command::Spawn { spec, reply: None },
             UiCommand::StopNode { node } => Command::Stop { node },
             UiCommand::PauseNode { node } => Command::Pause { node },
@@ -132,14 +137,17 @@ struct Graph {
     graph: StableDiGraph<Agent, Edge>,
     index: HashMap<NodeId, NodeIndex>,
     workspace: String,
+    workspace_kind: String,
 }
 
 impl Graph {
     fn new(workspace: String) -> Self {
+        let workspace_kind = detect_workspace_kind(&workspace);
         Self {
             graph: StableDiGraph::new(),
             index: HashMap::new(),
             workspace,
+            workspace_kind,
         }
     }
 
@@ -195,6 +203,7 @@ pub(crate) async fn run(
                 publish_snapshot(&bus, &state).await;
             }
             Command::SetWorkspace { path } => {
+                state.workspace_kind = detect_workspace_kind(&path);
                 state.workspace = path;
                 publish_snapshot(&bus, &state).await;
             }
@@ -223,8 +232,31 @@ pub(crate) async fn run(
                     command_tx.clone(),
                 ));
             }
+            Command::AnalyzeProgress(line) => {
+                bus::publish(&bus, topics::ANALYZE_PROGRESS, &line).await;
+            }
             Command::AnalyzeDone(result) => {
                 bus::publish(&bus, topics::SUGGESTIONS, &result).await;
+            }
+            Command::Kickoff { text } => {
+                let entries: Vec<NodeId> = state
+                    .index
+                    .iter()
+                    .filter(|(_, node)| {
+                        state
+                            .graph
+                            .neighbors_directed(**node, Direction::Incoming)
+                            .count()
+                            == 0
+                    })
+                    .map(|(id, _)| id.clone())
+                    .collect();
+                for id in entries {
+                    if let Some(agent) = state.agent_mut(&id) {
+                        deliver(&bus, &command_tx, &id, agent, &text).await;
+                    }
+                }
+                publish_snapshot(&bus, &state).await;
             }
             Command::Spawn { spec, reply } => {
                 let id = stage(&mut state, spec);
@@ -549,8 +581,38 @@ fn snapshot_of(state: &Graph) -> GraphSnapshot {
     let edges: Vec<Edge> = state.graph.edge_weights().cloned().collect();
     GraphSnapshot {
         workspace: state.workspace.clone(),
+        workspace_kind: state.workspace_kind.clone(),
         nodes,
         edges,
+    }
+}
+
+/// Looks at a directory and names what it is: a git repo, a Rust workspace or
+/// crate, both, or a plain folder.
+fn detect_workspace_kind(path: &str) -> String {
+    if path.is_empty() || path == "." {
+        return String::new();
+    }
+    let root = std::path::Path::new(path);
+    let mut parts = Vec::new();
+    if root.join(".git").exists() {
+        parts.push("git".to_string());
+    }
+    let cargo = root.join("Cargo.toml");
+    if cargo.exists() {
+        let is_workspace = std::fs::read_to_string(&cargo)
+            .map(|text| text.contains("[workspace]"))
+            .unwrap_or(false);
+        parts.push(if is_workspace {
+            "rust workspace".to_string()
+        } else {
+            "rust crate".to_string()
+        });
+    }
+    if parts.is_empty() {
+        "folder".to_string()
+    } else {
+        parts.join(" \u{00b7} ")
     }
 }
 

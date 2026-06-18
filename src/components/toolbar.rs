@@ -1,60 +1,29 @@
-//! The top bar: identity, host connection, the workspace the graph runs in, an
-//! inline form to stage a node, and the button to execute the staged graph.
+//! The top bar: identity, host connection, the active workspace and what was
+//! detected there, and the run controls. Building the graph happens on the canvas
+//! and in the conductor, so the bar stays uncluttered.
 
 use leptos::prelude::*;
-use protocol::{NodeSpec, UiCommand};
+use protocol::UiCommand;
 
 use crate::bus::{self, Bus};
 use crate::state::MobiusState;
 
 #[component]
 pub fn Toolbar(state: MobiusState, bus: Bus) -> impl IntoView {
-    let new_id = RwSignal::new(String::new());
-    let new_role = RwSignal::new(String::new());
-    let workspace = RwSignal::new(String::new());
-
-    let stage = {
-        let bus = bus.clone();
-        move || {
-            let id = new_id.get_untracked().trim().to_string();
-            let role = new_role.get_untracked().trim().to_string();
-            if id.is_empty() || role.is_empty() {
-                return;
-            }
-            let spec = NodeSpec {
-                label: id.clone(),
-                id,
-                system_prompt: role,
-                cwd: String::new(),
-                allowed_tools: Vec::new(),
-                model: None,
-            };
-            bus::publish_command(&bus, &UiCommand::StageNode { spec });
-            new_id.set(String::new());
-            new_role.set(String::new());
-        }
-    };
-
-    let set_workspace = {
-        let bus = bus.clone();
-        move || {
-            let path = workspace.get_untracked().trim().to_string();
-            if path.is_empty() {
-                return;
-            }
-            bus::publish_command(&bus, &UiCommand::SetWorkspace { path });
-            workspace.set(String::new());
-        }
-    };
-
-    let browse = {
+    let open = {
         let bus = bus.clone();
         move |_| bus::publish_command(&bus, &UiCommand::PickWorkspace)
     };
 
     let execute = {
         let bus = bus.clone();
-        move |_| bus::publish_command(&bus, &UiCommand::Execute)
+        move |_| {
+            bus::publish_command(&bus, &UiCommand::Execute);
+            let kickoff = state.kickoff.get_untracked();
+            if !kickoff.trim().is_empty() {
+                bus::publish_command(&bus, &UiCommand::Kickoff { text: kickoff });
+            }
+        }
     };
 
     let kill = {
@@ -71,84 +40,40 @@ pub fn Toolbar(state: MobiusState, bus: Bus) -> impl IntoView {
             <div class=move || if state.connected.get() { "conn online" } else { "conn offline" }>
                 <span class="conn-dot"></span>
                 <span>
-                    {move || if state.connected.get() { "host connected" } else { "connecting to host..." }}
+                    {move || if state.connected.get() { "connected" } else { "connecting..." }}
                 </span>
             </div>
-            <div class="workspace-field">
-                <span class="field-label">"workspace"</span>
-                <span class="workspace-active" title="the directory new agents run in">
-                    {move || {
-                        let path = state.snapshot.get().workspace;
-                        if path.is_empty() || path == "." {
-                            "no repo chosen".to_string()
-                        } else {
-                            path
-                        }
-                    }}
-                </span>
-                <button class="btn" on:click=browse>
-                    "Browse..."
-                </button>
-                <input
-                    class="ti workspace-input"
-                    placeholder="or type a path"
-                    prop:value=move || workspace.get()
-                    on:input=move |event| workspace.set(event_target_value(&event))
-                    on:keydown={
-                        let set_workspace = set_workspace.clone();
-                        move |event| {
-                            if event.key() == "Enter" {
-                                set_workspace();
-                            }
-                        }
-                    }
-                />
-                <button
-                    class="btn"
-                    on:click={
-                        let set_workspace = set_workspace.clone();
-                        move |_| set_workspace()
-                    }
-                >
-                    "Set"
-                </button>
-            </div>
-            <div class="spacer"></div>
-            <div class="new-node">
-                <input
-                    class="ti id"
-                    placeholder="node id"
-                    prop:value=move || new_id.get()
-                    on:input=move |event| new_id.set(event_target_value(&event))
-                />
-                <input
-                    class="ti role"
-                    placeholder="role / system prompt"
-                    prop:value=move || new_role.get()
-                    on:input=move |event| new_role.set(event_target_value(&event))
-                    on:keydown={
-                        let stage = stage.clone();
-                        move |event| {
-                            if event.key() == "Enter" {
-                                stage();
-                            }
-                        }
-                    }
-                />
-                <button
-                    class="btn"
-                    on:click={
-                        let stage = stage.clone();
-                        move |_| stage()
-                    }
-                >
-                    "Stage"
-                </button>
-            </div>
-            <button class="btn primary execute" on:click=execute>
-                {move || format!("Execute ({})", staged_count(state))}
+            <button class="btn open-btn" on:click=open>
+                "Open repo..."
             </button>
-            <button class="btn kill" on:click=kill>"Stop all"</button>
+            <span class="workspace-active" title="the directory new agents run in">
+                {move || {
+                    let path = state.snapshot.get().workspace;
+                    if path.is_empty() || path == "." {
+                        "no repo chosen".to_string()
+                    } else {
+                        path
+                    }
+                }}
+            </span>
+            {move || {
+                let kind = state.snapshot.get().workspace_kind;
+                (!kind.is_empty()).then(|| view! { <span class="repo-badge">{kind}</span> })
+            }}
+            <div class="spacer"></div>
+            <button class="btn primary execute" on:click=execute>
+                {move || {
+                    let staged = staged_count(state);
+                    if staged > 0 {
+                        format!("Execute ({staged})")
+                    } else {
+                        "Execute".to_string()
+                    }
+                }}
+            </button>
+            <button class="btn kill" on:click=kill>
+                "Stop all"
+            </button>
         </div>
     }
 }

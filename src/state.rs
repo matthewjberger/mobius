@@ -42,6 +42,10 @@ pub struct MobiusState {
     pub comms: RwSignal<Vec<Communication>>,
     /// The edge that most recently carried a message, for the pulse animation.
     pub pulse: RwSignal<Option<(NodeId, NodeId)>>,
+    /// The prompt Execute sends to entry nodes to start the loop.
+    pub kickoff: RwSignal<String>,
+    /// The analyzer's latest progress line while recon runs.
+    pub analyze_progress: RwSignal<String>,
 }
 
 impl MobiusState {
@@ -58,6 +62,8 @@ impl MobiusState {
             analyze_error: RwSignal::new(None),
             comms: RwSignal::new(Vec::new()),
             pulse: RwSignal::new(None),
+            kickoff: RwSignal::new(String::new()),
+            analyze_progress: RwSignal::new(String::new()),
         }
     }
 }

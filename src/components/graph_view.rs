@@ -23,7 +23,9 @@ pub fn GraphView(state: MobiusState, bus: Bus) -> impl IntoView {
             }
             state.analyzing.set(true);
             state.analyze_error.set(None);
+            state.analyze_progress.set(String::new());
             state.suggestions.set(Vec::new());
+            state.kickoff.set(goal_text.clone());
             bus::publish_command(&bus, &UiCommand::Analyze { goal: goal_text });
         }
     };
@@ -146,7 +148,13 @@ fn start_screen(
                 <div class="preset-card">
                     <div class="preset-name">{preset.name}</div>
                     <div class="preset-blurb">{preset.blurb}</div>
-                    <button class="btn primary" on:click=move |_| presets::apply(&bus, preset)>
+                    <button
+                        class="btn primary"
+                        on:click=move |_| {
+                            presets::apply(&bus, preset);
+                            state.kickoff.set(String::new());
+                        }
+                    >
                         "Stage this loop"
                     </button>
                 </div>
@@ -213,7 +221,13 @@ fn start_screen(
                 </button>
             </div>
             <Show when=move || state.analyzing.get() fallback=|| ()>
-                <div class="analyze-status">"Analyzing the repository..."</div>
+                <div class="analyze-status">
+                    <div class="analyze-status-head">
+                        <span class="spinner"></span>
+                        "Reading the repository and drafting workflows..."
+                    </div>
+                    <div class="analyze-progress">{move || state.analyze_progress.get()}</div>
+                </div>
             </Show>
             {move || {
                 state

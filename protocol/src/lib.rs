@@ -22,6 +22,8 @@ pub mod topics {
     pub const COMMS: &str = "mobius/comms";
     /// Host to page: an [`super::AnalyzeResult`] when repo recon finishes.
     pub const SUGGESTIONS: &str = "mobius/suggestions";
+    /// Host to page: a progress line (a JSON string) while recon runs.
+    pub const ANALYZE_PROGRESS: &str = "mobius/analyze/progress";
     /// Page to host: a [`super::ConductorPrompt`], the user's plain-English message.
     pub const CONDUCTOR_PROMPT: &str = "mobius/conductor/prompt";
     /// Page to host: a [`super::UiCommand`] to drive the graph from the UI.
@@ -98,6 +100,8 @@ pub struct NodeView {
 pub struct GraphSnapshot {
     /// The directory new agents run in by default, so they share project context.
     pub workspace: String,
+    /// What was detected at the workspace: e.g. "git \u{00b7} rust workspace".
+    pub workspace_kind: String,
     pub nodes: Vec<NodeView>,
     pub edges: Vec<Edge>,
 }
@@ -206,6 +210,11 @@ pub enum UiCommand {
     /// Add a node and start it immediately (used for live additions).
     SpawnNode {
         spec: NodeSpec,
+    },
+    /// Kick off the loop: send this text to every entry node (no inbound edges),
+    /// starting them if needed.
+    Kickoff {
+        text: String,
     },
     StopNode {
         node: NodeId,

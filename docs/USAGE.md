@@ -15,9 +15,9 @@ would; it has no other access.
 
 A first session:
 
-1. Set the **workspace** in the toolbar to the repo you want to work on. Press
-   **Browse…** for a native folder dialog, or type a path and press Set. Every
-   agent runs there, so they share that project's context.
+1. Press **Open repo…** in the toolbar and pick the directory you want to work
+   in. Mobius detects whether it is a git repo and a Rust workspace or crate and
+   shows a badge. Every agent runs there, so they share that project's context.
 2. In the chat, ask for what you want:
    > Spawn an implementer and a reviewer on this repo, wire them into a loop, and
    > have the implementer add a retry policy with backoff to the HTTP client. The
@@ -28,10 +28,13 @@ A first session:
 
 ## Let it suggest a graph
 
-On the start screen, set your workspace, type a **goal** ("add unit tests to the
-parser", "find and fix the flaky tests"), and press **Analyze repo**. A one-shot
-analyst reads the repo and proposes a few tailored workflows as cards; click one
-to stage it, the same as a built-in template. Tweak it, then Execute.
+On the start screen, open a repo, type a **goal** ("add unit tests to the
+parser", "find and fix the flaky tests"), and press **Analyze repo**. An analyst
+reads the repo, streaming what it is doing as it goes, and proposes a few tailored
+workflows as cards. Click one to stage it. Because you analyzed for a goal,
+**Execute** sends that goal to the graph's entry nodes, so the loop starts on its
+own; with a hand-built graph or a template, Execute just starts the agents and you
+send the first prompt from a node's panel.
 
 ## 2. Build the graph by hand
 
