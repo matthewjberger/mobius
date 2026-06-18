@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 
 use leptos::prelude::*;
-use protocol::UiCommand;
+use protocol::{SuggestedGraph, UiCommand};
 
 use crate::bus::{self, Bus};
 use crate::presets::{self, PRESETS};
@@ -130,6 +130,18 @@ pub fn GraphView(state: MobiusState, bus: Bus) -> impl IntoView {
     }
 }
 
+/// The prompt that starts a staged suggestion: its own kickoff, else the typed
+/// goal, else a generic first step, so Execute always has something to send.
+fn suggestion_kickoff(graph: &SuggestedGraph, goal: String) -> String {
+    if !graph.kickoff.trim().is_empty() {
+        graph.kickoff.clone()
+    } else if !goal.trim().is_empty() {
+        goal
+    } else {
+        "Begin working toward a valuable improvement in this repository, starting with the most useful first step.".to_string()
+    }
+}
+
 fn start_screen(
     state: MobiusState,
     bus: Bus,
@@ -178,7 +190,7 @@ fn start_screen(
                             class="btn primary"
                             on:click=move |_| {
                                 presets::apply_suggested(&bus, &staged);
-                                state.kickoff.set(staged.kickoff.clone());
+                                state.kickoff.set(suggestion_kickoff(&staged, goal.get_untracked()));
                             }
                         >
                             "Stage this"
