@@ -9,6 +9,8 @@ It is all Rust: a tokio host that owns the agent subprocesses and a hearsay bus,
 Leptos UI in a `wry` webview, and a programmable core you can drive from a plain
 Rust program. The host is the point, so Mobius ships native.
 
+![Mobius running a documentation-audit loop on a repository](docs/screenshot.png)
+
 ## Run
 
 ```sh
