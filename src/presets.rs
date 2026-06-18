@@ -2,7 +2,7 @@
 //! that wire them into a loop. Applying one stages the whole graph in one click,
 //! ready to point at a workspace and execute.
 
-use protocol::{Edge, NodeSpec, Trigger, UiCommand};
+use protocol::{Edge, NodeSpec, SuggestedGraph, Trigger, UiCommand};
 
 use crate::bus::{self, Bus};
 
@@ -94,6 +94,39 @@ pub const PRESETS: &[Preset] = &[
         ],
     },
 ];
+
+/// Stages a graph the analyzer suggested.
+pub fn apply_suggested(bus: &Bus, graph: &SuggestedGraph) {
+    for node in &graph.nodes {
+        bus::publish_command(
+            bus,
+            &UiCommand::StageNode {
+                spec: NodeSpec {
+                    id: node.id.clone(),
+                    label: node.id.clone(),
+                    system_prompt: node.role.clone(),
+                    cwd: String::new(),
+                    allowed_tools: Vec::new(),
+                    model: None,
+                },
+            },
+        );
+    }
+    for edge in &graph.edges {
+        bus::publish_command(
+            bus,
+            &UiCommand::AddEdge {
+                edge: Edge {
+                    id: format!("{}->{}", edge.from, edge.to),
+                    from: edge.from.clone(),
+                    to: edge.to.clone(),
+                    trigger: Trigger::OnTurnEnd,
+                    prompt_template: edge.template.clone(),
+                },
+            },
+        );
+    }
+}
 
 /// Stages every node and edge of a preset onto the graph.
 pub fn apply(bus: &Bus, preset: &Preset) {

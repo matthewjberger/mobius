@@ -173,6 +173,24 @@ components render it:
   conductor's assistant text, thinking, and the tool calls it makes against the
   graph.
 
+## The workspace and repo analysis
+
+Every agent runs in a **workspace** directory, so the whole graph shares one
+project's context. The page can't open a native dialog from the webview, so it
+follows the same rule as everything else: it asks the host. `UiCommand::PickWorkspace`
+makes the host open an `rfd` folder dialog on a blocking task and feed the choice
+back as a `SetWorkspace`. `set_workspace` resolves a node's empty or `.` working
+directory at stage time, so staging after picking lands agents in the repo.
+
+**Analyze** is recon as a one-shot agent. `UiCommand::Analyze { goal }` spawns a
+transient Claude analyst (`analyzer.rs`) in the workspace with read-only tools,
+prompted to inspect the repo and return a JSON array of candidate workflows: named
+graphs of node roles and edges, each with a rationale. The host parses that
+(tolerating prose around the JSON) and publishes an `AnalyzeResult` to
+`mobius/suggestions`. The page renders each suggestion as a one-click card that
+stages the whole graph, exactly like a built-in preset but tailored to the repo
+and goal. The conductor can trigger the same flow through the `analyze` MCP tool.
+
 ## Programmatic use
 
 The same host the desktop boots is a library. A headless program builds and runs a

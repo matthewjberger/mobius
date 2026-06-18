@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 
 use leptos::prelude::*;
-use protocol::{GraphSnapshot, NodeId, NodeOutput, NodeStatus, OutputKind};
+use protocol::{GraphSnapshot, NodeId, NodeOutput, NodeStatus, OutputKind, SuggestedGraph};
 
 /// One line in the conductor chat. `mine` is the user's own message; otherwise it
 /// is a normalized line from the conductor's stream.
@@ -30,6 +30,12 @@ pub struct MobiusState {
     pub chat: RwSignal<Vec<ChatEntry>>,
     /// Whether the conductor is mid-turn, for the working indicator.
     pub chat_busy: RwSignal<bool>,
+    /// Workflows the analyzer suggested for the current goal.
+    pub suggestions: RwSignal<Vec<SuggestedGraph>>,
+    /// Whether repo recon is in flight.
+    pub analyzing: RwSignal<bool>,
+    /// The last analyze error, if any.
+    pub analyze_error: RwSignal<Option<String>>,
 }
 
 impl MobiusState {
@@ -41,6 +47,9 @@ impl MobiusState {
             selected: RwSignal::new(None),
             chat: RwSignal::new(Vec::new()),
             chat_busy: RwSignal::new(false),
+            suggestions: RwSignal::new(Vec::new()),
+            analyzing: RwSignal::new(false),
+            analyze_error: RwSignal::new(None),
         }
     }
 }

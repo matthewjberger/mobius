@@ -193,6 +193,12 @@ async fn run_tool(
         }
         "execute" => fire(commands, Command::Execute),
         "stop_all" => fire(commands, Command::StopAll),
+        "analyze" => fire(
+            commands,
+            Command::Analyze {
+                goal: string_arg(&arguments, "goal")?,
+            },
+        ),
         "set_workspace" => fire(
             commands,
             Command::SetWorkspace {
@@ -410,6 +416,11 @@ fn tool_definitions() -> Vec<Value> {
             "stop_all",
             "The kill switch: stop every running agent at once. The staged design stays so it can be rerun.",
             json!({ "type": "object", "properties": {} }),
+        ),
+        tool(
+            "analyze",
+            "Do recon on the workspace against a goal and publish suggested graphs for the user to stage. Use when the user wants ideas for how to structure the work.",
+            json!({ "type": "object", "properties": { "goal": { "type": "string" } }, "required": ["goal"] }),
         ),
         tool(
             "set_workspace",

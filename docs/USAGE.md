@@ -15,9 +15,9 @@ would; it has no other access.
 
 A first session:
 
-1. Set the **workspace** in the toolbar to the repo you want to work on, for
-   example `C:\Users\you\code\nightshade`, and press Set. Every agent runs there,
-   so they share that project's context.
+1. Set the **workspace** in the toolbar to the repo you want to work on. Press
+   **Browse…** for a native folder dialog, or type a path and press Set. Every
+   agent runs there, so they share that project's context.
 2. In the chat, ask for what you want:
    > Spawn an implementer and a reviewer on this repo, wire them into a loop, and
    > have the implementer add a retry policy with backoff to the HTTP client. The
@@ -25,6 +25,13 @@ A first session:
 3. Watch the graph appear on the left and the agents start passing work back and
    forth. Ask the conductor things like "what is the reviewer waiting on?" or
    "pause the implementer" at any time.
+
+## Let it suggest a graph
+
+On the start screen, set your workspace, type a **goal** ("add unit tests to the
+parser", "find and fix the flaky tests"), and press **Analyze repo**. A one-shot
+analyst reads the repo and proposes a few tailored workflows as cards; click one
+to stage it, the same as a built-in template. Tweak it, then Execute.
 
 ## 2. Build the graph by hand
 

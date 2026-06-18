@@ -38,6 +38,10 @@ pub(crate) enum Command {
     SetWorkspace {
         path: String,
     },
+    PickWorkspace,
+    Analyze {
+        goal: String,
+    },
     Spawn {
         spec: NodeSpec,
         reply: Option<oneshot::Sender<Result<NodeId>>>,
@@ -94,6 +98,8 @@ impl From<protocol::UiCommand> for Command {
             UiCommand::StageNode { spec } => Command::Stage { spec, reply: None },
             UiCommand::Execute => Command::Execute,
             UiCommand::SetWorkspace { path } => Command::SetWorkspace { path },
+            UiCommand::PickWorkspace => Command::PickWorkspace,
+            UiCommand::Analyze { goal } => Command::Analyze { goal },
             UiCommand::SpawnNode { spec } => Command::Spawn { spec, reply: None },
             UiCommand::StopNode { node } => Command::Stop { node },
             UiCommand::PauseNode { node } => Command::Pause { node },
@@ -155,6 +161,7 @@ pub(crate) async fn run(
     command_tx: mpsc::UnboundedSender<Command>,
     bus: Client,
     workspace: String,
+    tcp_addr: String,
 ) {
     let mut state = Graph::new(workspace);
 
@@ -190,6 +197,31 @@ pub(crate) async fn run(
             Command::SetWorkspace { path } => {
                 state.workspace = path;
                 publish_snapshot(&bus, &state).await;
+            }
+            Command::PickWorkspace => {
+                let commands = command_tx.clone();
+                tokio::spawn(async move {
+                    let picked = tokio::task::spawn_blocking(|| {
+                        rfd::FileDialog::new()
+                            .set_title("Choose a workspace")
+                            .pick_folder()
+                    })
+                    .await
+                    .ok()
+                    .flatten();
+                    if let Some(path) = picked {
+                        let _ = commands.send(Command::SetWorkspace {
+                            path: path.display().to_string(),
+                        });
+                    }
+                });
+            }
+            Command::Analyze { goal } => {
+                tokio::spawn(crate::analyzer::run(
+                    goal,
+                    state.workspace.clone(),
+                    tcp_addr.clone(),
+                ));
             }
             Command::Spawn { spec, reply } => {
                 let id = stage(&mut state, spec);

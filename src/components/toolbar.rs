@@ -53,6 +53,11 @@ pub fn Toolbar(state: MobiusState, bus: Bus) -> impl IntoView {
         }
     };
 
+    let browse = {
+        let bus = bus.clone();
+        move |_| bus::publish_command(&bus, &UiCommand::PickWorkspace)
+    };
+
     let execute = {
         let bus = bus.clone();
         move |_| bus::publish_command(&bus, &UiCommand::Execute)
@@ -91,6 +96,9 @@ pub fn Toolbar(state: MobiusState, bus: Bus) -> impl IntoView {
                         }
                     }
                 />
+                <button class="btn" on:click=browse>
+                    "Browse..."
+                </button>
                 <button
                     class="btn"
                     on:click={

@@ -18,6 +18,8 @@ pub mod topics {
     pub const NODE_STATE: &str = "mobius/nodes/state";
     /// Host to page: the conductor's normalized stream, a [`super::ConductorEvent`].
     pub const CONDUCTOR_OUTPUT: &str = "mobius/conductor/output";
+    /// Host to page: an [`super::AnalyzeResult`] when repo recon finishes.
+    pub const SUGGESTIONS: &str = "mobius/suggestions";
     /// Page to host: a [`super::ConductorPrompt`], the user's plain-English message.
     pub const CONDUCTOR_PROMPT: &str = "mobius/conductor/prompt";
     /// Page to host: a [`super::UiCommand`] to drive the graph from the UI.
@@ -146,6 +148,39 @@ pub struct ConductorPrompt {
     pub text: String,
 }
 
+/// One node in a suggested graph, as the analyzer proposes it.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SuggestedNode {
+    pub id: String,
+    pub role: String,
+}
+
+/// One edge in a suggested graph, fired on every turn when staged.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SuggestedEdge {
+    pub from: String,
+    pub to: String,
+    pub template: String,
+}
+
+/// A workflow the analyzer proposes for the repo and goal: a named graph plus the
+/// reason it fits.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SuggestedGraph {
+    pub name: String,
+    pub rationale: String,
+    pub nodes: Vec<SuggestedNode>,
+    pub edges: Vec<SuggestedEdge>,
+}
+
+/// The result of analyzing a repo against a goal: proposed graphs, or an error.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AnalyzeResult {
+    pub goal: String,
+    pub graphs: Vec<SuggestedGraph>,
+    pub error: Option<String>,
+}
+
 /// An imperative the page issues to drive the graph, mirroring the buttons in the
 /// node inspector and graph view. The conductor reaches the same operations
 /// through the MCP tools instead.
@@ -185,6 +220,13 @@ pub enum UiCommand {
     /// Set the directory new agents run in, so the graph shares project context.
     SetWorkspace {
         path: String,
+    },
+    /// Ask the host to open a native folder dialog and set the workspace to the
+    /// chosen directory.
+    PickWorkspace,
+    /// Do recon on the workspace against a goal and suggest graphs to stage.
+    Analyze {
+        goal: String,
     },
     /// Ask the host to republish the current graph, to prime a freshly connected page.
     RequestSnapshot,

@@ -642,6 +642,49 @@ body {
   align-self: flex-start;
 }
 
+.preset-card.suggested {
+  border-color: rgba(176, 140, 255, 0.45);
+}
+
+/* Analyze panel on the start screen */
+.analyze-bar {
+  display: flex;
+  gap: 8px;
+  margin-top: 22px;
+  width: 560px;
+  max-width: 90%;
+}
+
+.analyze-goal {
+  flex: 1;
+}
+
+.analyze-status {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.analyze-error {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--failed);
+  max-width: 560px;
+}
+
+.suggest-title {
+  margin-top: 24px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--accent-2);
+  text-transform: uppercase;
+}
+
+.suggest-title.muted-title {
+  color: var(--faint);
+}
+
 /* Staged nodes: in the design, not yet running */
 .node.staged {
   border-left-style: dashed;

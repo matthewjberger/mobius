@@ -10,8 +10,8 @@ use std::rc::Rc;
 use hearsay::{Message, PeerEvent};
 use leptos::prelude::*;
 use protocol::{
-    ConductorEvent, ConductorPrompt, GraphSnapshot, NodeOutput, NodeStateUpdate, OutputKind,
-    UiCommand, topics,
+    AnalyzeResult, ConductorEvent, ConductorPrompt, GraphSnapshot, NodeOutput, NodeStateUpdate,
+    OutputKind, UiCommand, topics,
 };
 use send_wrapper::SendWrapper;
 use serde::Serialize;
@@ -135,6 +135,12 @@ fn route(message: &Message, state: MobiusState) {
                 view.turns = update.turns;
             }
         });
+    } else if message.topic == topics::SUGGESTIONS
+        && let Ok(result) = serde_json::from_str::<AnalyzeResult>(&message.payload)
+    {
+        state.analyzing.set(false);
+        state.analyze_error.set(result.error);
+        state.suggestions.set(result.graphs);
     } else if message.topic == topics::CONDUCTOR_OUTPUT
         && let Ok(event) = serde_json::from_str::<ConductorEvent>(&message.payload)
     {
@@ -166,6 +172,7 @@ fn hello_and_subscribe(socket: &WebSocket) {
         topics::NODE_OUTPUT,
         topics::NODE_STATE,
         topics::CONDUCTOR_OUTPUT,
+        topics::SUGGESTIONS,
     ] {
         send_event(
             socket,

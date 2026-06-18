@@ -5,47 +5,35 @@
 use std::collections::HashMap;
 
 use leptos::prelude::*;
+use protocol::UiCommand;
 
-use crate::bus::Bus;
+use crate::bus::{self, Bus};
 use crate::presets::{self, PRESETS};
 use crate::state::{MobiusState, status_class, status_text, truncate};
 
 #[component]
 pub fn GraphView(state: MobiusState, bus: Bus) -> impl IntoView {
+    let goal = RwSignal::new(String::new());
+    let analyze = {
+        let bus = bus.clone();
+        move || {
+            let goal_text = goal.get_untracked().trim().to_string();
+            if goal_text.is_empty() {
+                return;
+            }
+            state.analyzing.set(true);
+            state.analyze_error.set(None);
+            state.suggestions.set(Vec::new());
+            bus::publish_command(&bus, &UiCommand::Analyze { goal: goal_text });
+        }
+    };
+
     view! {
         <div class="graph">
             {move || {
                 let snapshot = state.snapshot.get();
                 if snapshot.nodes.is_empty() {
-                    let bus = bus.clone();
-                    let cards = PRESETS
-                        .iter()
-                        .map(|preset| {
-                            let bus = bus.clone();
-                            view! {
-                                <div class="preset-card">
-                                    <div class="preset-name">{preset.name}</div>
-                                    <div class="preset-blurb">{preset.blurb}</div>
-                                    <button
-                                        class="btn primary"
-                                        on:click=move |_| presets::apply(&bus, preset)
-                                    >
-                                        "Stage this loop"
-                                    </button>
-                                </div>
-                            }
-                        })
-                        .collect_view();
-                    return view! {
-                        <div class="graph-empty">
-                            <div class="graph-empty-title">"Start with a loop"</div>
-                            <div class="graph-empty-sub">
-                                "Set your workspace up top, then stage a template below to design it. Nothing runs until you press Execute. You can also build your own, or ask the conductor on the right."
-                            </div>
-                            <div class="preset-grid">{cards}</div>
-                        </div>
-                    }
-                    .into_any();
+                    return start_screen(state, bus.clone(), goal, analyze.clone()).into_any();
                 }
 
                 let count = snapshot.nodes.len();
@@ -134,6 +122,102 @@ pub fn GraphView(state: MobiusState, bus: Bus) -> impl IntoView {
                 }
                 .into_any()
             }}
+        </div>
+    }
+}
+
+fn start_screen(
+    state: MobiusState,
+    bus: Bus,
+    goal: RwSignal<String>,
+    analyze: impl Fn() + Clone + 'static,
+) -> impl IntoView {
+    let preset_cards = PRESETS
+        .iter()
+        .map(|preset| {
+            let bus = bus.clone();
+            view! {
+                <div class="preset-card">
+                    <div class="preset-name">{preset.name}</div>
+                    <div class="preset-blurb">{preset.blurb}</div>
+                    <button class="btn primary" on:click=move |_| presets::apply(&bus, preset)>
+                        "Stage this loop"
+                    </button>
+                </div>
+            }
+        })
+        .collect_view();
+
+    let suggest_bus = bus.clone();
+    let suggestions = move || {
+        let graphs = state.suggestions.get();
+        if graphs.is_empty() {
+            return ().into_any();
+        }
+        let bus = suggest_bus.clone();
+        let cards = graphs
+            .into_iter()
+            .map(|graph| {
+                let bus = bus.clone();
+                let staged = graph.clone();
+                view! {
+                    <div class="preset-card suggested">
+                        <div class="preset-name">{graph.name.clone()}</div>
+                        <div class="preset-blurb">{graph.rationale.clone()}</div>
+                        <button
+                            class="btn primary"
+                            on:click=move |_| presets::apply_suggested(&bus, &staged)
+                        >
+                            "Stage this"
+                        </button>
+                    </div>
+                }
+            })
+            .collect_view();
+        view! {
+            <div class="suggest-title">"Suggested for your goal"</div>
+            <div class="preset-grid">{cards}</div>
+        }
+        .into_any()
+    };
+
+    let analyze_enter = analyze.clone();
+    let analyze_click = analyze.clone();
+
+    view! {
+        <div class="graph-empty">
+            <div class="graph-empty-title">"Start with a loop"</div>
+            <div class="graph-empty-sub">
+                "Set your workspace up top, then analyze it for a goal or stage a template. Nothing runs until you press Execute. You can also ask the conductor on the right."
+            </div>
+            <div class="analyze-bar">
+                <input
+                    class="ti analyze-goal"
+                    placeholder="Describe a goal, e.g. add unit tests to the parser"
+                    prop:value=move || goal.get()
+                    on:input=move |event| goal.set(event_target_value(&event))
+                    on:keydown=move |event| {
+                        if event.key() == "Enter" {
+                            analyze_enter();
+                        }
+                    }
+                />
+                <button class="btn primary" on:click=move |_| analyze_click()>
+                    "Analyze repo"
+                </button>
+            </div>
+            <Show when=move || state.analyzing.get() fallback=|| ()>
+                <div class="analyze-status">"Analyzing the repository..."</div>
+            </Show>
+            {move || {
+                state
+                    .analyze_error
+                    .get()
+                    .map(|error| view! { <div class="analyze-error">{error}</div> })
+            }}
+            {suggestions}
+            <div class="suggest-title muted-title">"Or start from a template"</div>
+            <div class="preset-grid">{preset_cards}</div>
         </div>
     }
 }
